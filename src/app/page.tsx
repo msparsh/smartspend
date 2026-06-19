@@ -31,7 +31,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { Transaction, CategoryName, AIMessage, TransactionType, Budget, User } from "@/lib/types";
+import { Transaction, CategoryName, CategoryInfo, AIMessage, TransactionType, Budget, User } from "@/lib/types";
 import { CATEGORIES, INITIAL_TRANSACTIONS, INITIAL_BUDGETS } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,6 +84,13 @@ export default function SmartSpendApp() {
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Categories & custom adding state
+  const [categories, setCategories] = useState<Record<string, CategoryInfo>>(CATEGORIES);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("#6366f1");
+  const [newCategoryLimit, setNewCategoryLimit] = useState("2000");
+
   // Set default date
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -122,6 +129,19 @@ export default function SmartSpendApp() {
       } else {
         setBudgets(INITIAL_BUDGETS);
         localStorage.setItem("ss_budgets", JSON.stringify(INITIAL_BUDGETS));
+      }
+
+      // Load Categories
+      const savedCategories = localStorage.getItem("ss_categories");
+      if (savedCategories) {
+        try {
+          setCategories(JSON.parse(savedCategories));
+        } catch (e) {
+          setCategories(CATEGORIES);
+        }
+      } else {
+        setCategories(CATEGORIES);
+        localStorage.setItem("ss_categories", JSON.stringify(CATEGORIES));
       }
 
       // Load Transactions
@@ -269,6 +289,54 @@ export default function SmartSpendApp() {
     setBudgets(updatedBudgets);
     localStorage.setItem("ss_budgets", JSON.stringify(updatedBudgets));
     setEditingCategoryBudget(null);
+  };
+
+  const openAddCategoryModal = () => {
+    setNewCategoryName("");
+    setNewCategoryColor("#6366f1");
+    setNewCategoryLimit("2000");
+    setShowAddCategoryModal(true);
+  };
+
+  const handleSaveCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+
+    const trimmedName = newCategoryName.trim();
+
+    if (categories[trimmedName]) {
+      alert("This category already exists!");
+      return;
+    }
+
+    const info: CategoryInfo = {
+      name: trimmedName,
+      icon: "Coins",
+      color: newCategoryColor,
+      bgLight: "bg-slate-50/70",
+      bgDark: "bg-slate-950/20",
+      isCustom: true,
+    };
+
+    const updatedCategories = {
+      ...categories,
+      [trimmedName]: info,
+    };
+    setCategories(updatedCategories);
+    localStorage.setItem("ss_categories", JSON.stringify(updatedCategories));
+
+    const newBudget: Budget = {
+      category: trimmedName,
+      limit: Number(newCategoryLimit) || 0,
+    };
+    const updatedBudgets = [...budgets, newBudget];
+    setBudgets(updatedBudgets);
+    localStorage.setItem("ss_budgets", JSON.stringify(updatedBudgets));
+
+    setShowAddCategoryModal(false);
+    setNewCategoryName("");
+    setNewCategoryColor("#6366f1");
+    setNewCategoryLimit("2000");
   };
 
   // Financial calculations
@@ -573,7 +641,7 @@ export default function SmartSpendApp() {
           
           {/* TAB 1: DASHBOARD */}
           {activeTab === "dashboard" && (
-            <div className="space-y-4 animate-fadeIn">
+            <div className="space-y-4 animate-fadeIn max-h-[480px] overflow-y-auto pr-0.5">
               
               {/* Financial Cards */}
               <div className="grid grid-cols-2 gap-3">
@@ -656,7 +724,7 @@ export default function SmartSpendApp() {
                       .sort((a, b) => b[1] - a[1])
                       .slice(0, 3)
                       .map(([name, sum]) => {
-                        const info = CATEGORIES[name] || { color: "#6366f1", icon: "Coins" };
+                        const info = categories[name] || { color: "#6366f1", icon: "Coins" };
                         const limit = budgets.find((b) => b.category === name)?.limit || 1000;
                         const ratio = Math.min(100, Math.round((sum / limit) * 100));
 
@@ -742,7 +810,7 @@ export default function SmartSpendApp() {
                   </div>
                 ) : (
                   processedTransactions.map((t) => {
-                    const info = CATEGORIES[t.category] || { icon: "Coins", color: "#64748b" };
+                    const info = categories[t.category] || { icon: "Coins", color: "#64748b" };
                     return (
                       <div
                         key={t.id}
@@ -806,7 +874,7 @@ export default function SmartSpendApp() {
 
           {/* TAB 3: BUDGET PLANNER */}
           {activeTab === "budgets" && (
-            <div className="space-y-4 animate-fadeIn">
+            <div className="space-y-4 animate-fadeIn max-h-[480px] overflow-y-auto pr-0.5">
               <div className="bg-gradient-to-tr from-indigo-500 to-indigo-600 p-4 rounded-2xl text-white shadow-md">
                 <h3 className="text-sm font-bold">Category Budgets</h3>
                 <p className="text-[11px] text-indigo-100 font-light mt-1">
@@ -816,7 +884,7 @@ export default function SmartSpendApp() {
 
               <div className="space-y-3">
                 {budgets.map((b) => {
-                  const info = CATEGORIES[b.category] || { color: "#64748b" };
+                  const info = categories[b.category] || { color: "#64748b" };
                   const expSum = categoryExpenses[b.category] || 0;
                   const ratio = Math.min(100, Math.round((expSum / b.limit) * 100));
 
@@ -944,7 +1012,7 @@ export default function SmartSpendApp() {
         {/* Global Floating Actions Add Button */}
         {(activeTab === "transactions" || activeTab === "budgets") && (
           <button
-            onClick={openAddModal}
+            onClick={activeTab === "budgets" ? openAddCategoryModal : openAddModal}
             className="absolute bottom-18 right-5 h-12 w-12 bg-indigo-600 hover:bg-indigo-500 rounded-full text-white flex items-center justify-center shadow-lg shadow-indigo-600/35 transition-all z-20 border-0 cursor-pointer"
           >
             <Plus className="h-6 w-6" />
@@ -1045,7 +1113,7 @@ export default function SmartSpendApp() {
                         onChange={(e) => setFormCategory(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-800 focus:outline-none focus:border-indigo-400 focus:bg-white text-xs font-semibold"
                       >
-                        {Object.keys(CATEGORIES).map((catName) => (
+                        {Object.keys(categories).map((catName) => (
                           <option key={catName} value={catName}>
                             {catName}
                           </option>
@@ -1137,7 +1205,7 @@ export default function SmartSpendApp() {
                     const currentCatName = editingCategoryBudget;
                     const newCatName = targetInput?.value?.trim() || currentCatName;
 
-                    let updatedBudgets = budgets.map((b) => {
+                    const updatedBudgets = budgets.map((b) => {
                       if (b.category === currentCatName) {
                         return { ...b, category: newCatName, limit: limitVal };
                       }
@@ -1195,6 +1263,90 @@ export default function SmartSpendApp() {
                       className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs py-1.5 px-4 shadow-md border-0 cursor-pointer font-semibold"
                     >
                       Save Changes
+                    </button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Add Custom Category Budget Modal Dialog */}
+        {showAddCategoryModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-xs p-4">
+            <Card className="bg-white border-slate-100 max-w-sm w-full shadow-2xl relative animate-scaleIn">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold text-slate-800">
+                  Add Category Budget
+                </CardTitle>
+                <CardDescription className="text-[10px] text-slate-400 font-medium">
+                  Create a new category and set its monthly budget limit.
+                </CardDescription>
+                <button
+                  onClick={() => setShowAddCategoryModal(false)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg font-bold border-0 bg-transparent cursor-pointer"
+                >
+                  &times;
+                </button>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveCategory} className="space-y-3.5 text-xs text-slate-700">
+                  <div>
+                    <label className="block font-bold text-slate-500 mb-1">Category Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Shopping, Health"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-400 focus:bg-white text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-500 mb-1">Budget Limit (₹)</label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="e.g. 2000"
+                      value={newCategoryLimit}
+                      onChange={(e) => setNewCategoryLimit(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-400 focus:bg-white text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-500 mb-1">Theme Color</label>
+                    <div className="grid grid-cols-8 gap-2">
+                      {[
+                        "#6366f1", // Indigo
+                        "#10b981", // Emerald
+                        "#f43f5e", // Rose
+                        "#eab308", // Amber
+                        "#8b5cf6", // Violet
+                        "#0ea5e9", // Sky
+                        "#d946ef", // Fuchsia
+                        "#f97316", // Orange
+                      ].map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setNewCategoryColor(color)}
+                          className={`h-6 w-6 rounded-full border-2 cursor-pointer transition-all ${
+                            newCategoryColor === color ? "border-slate-800 scale-110" : "border-transparent"
+                          }`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl border-0 cursor-pointer shadow-md shadow-indigo-600/20 text-xs transition-colors"
+                    >
+                      Create Budget Category
                     </button>
                   </div>
                 </form>
