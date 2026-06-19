@@ -1,0 +1,19 @@
+{
+  "name": "SmartSpend - AI Personal Finance Tracker",
+  "short_name": "SmartSpend",
+  "description": "Progressive Web App for tracking personal finances with AI-powered insights.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
