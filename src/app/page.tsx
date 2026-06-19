@@ -603,7 +603,7 @@ export default function SmartSpendApp() {
     <div className="min-h-screen bg-slate-100 flex justify-center py-0 sm:py-6">
       {/* Mobile Screen Wrapper Frame */}
       <div className="w-full max-w-md bg-slate-50 sm:border sm:border-slate-200 sm:rounded-3xl shadow-xl flex flex-col min-h-screen sm:min-h-[812px] relative overflow-hidden">
-        
+
         {/* App Header */}
         <header className="bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-30 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
@@ -617,11 +617,10 @@ export default function SmartSpendApp() {
           </div>
 
           <div className="flex items-center space-x-2">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold border ${
-              dbStatus === "supabase" 
-                ? "bg-emerald-50 text-emerald-600 border-emerald-200" 
-                : "bg-slate-100 text-slate-600 border-slate-200"
-            }`}>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold border ${dbStatus === "supabase"
+              ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+              : "bg-slate-100 text-slate-600 border-slate-200"
+              }`}>
               <span className={`h-1 w-1 rounded-full mr-1 ${dbStatus === "supabase" ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
               {dbStatus === "supabase" ? "Cloud" : "Local"}
             </span>
@@ -637,12 +636,12 @@ export default function SmartSpendApp() {
         </header>
 
         {/* Tab Content Area */}
-        <main className="flex-1 overflow-y-auto pb-20 px-4 pt-4">
-          
+        <main className="flex-1 h-[100dvh] overflow-y-auto pb-20 px-4 pt-4">
+
           {/* TAB 1: DASHBOARD */}
           {activeTab === "dashboard" && (
-            <div className="space-y-4 animate-fadeIn max-h-[480px] overflow-y-auto pr-0.5">
-              
+            <div className="space-y-4 animate-fadeIn h-[100dvh] overflow-y-auto pr-0.5">
+
               {/* Financial Cards */}
               <div className="grid grid-cols-2 gap-3">
                 <Card className="border-slate-100 shadow-sm bg-white">
@@ -672,7 +671,7 @@ export default function SmartSpendApp() {
                       <p className="text-2xl font-black text-indigo-900 mt-0.5">{summary.savingsRate}%</p>
                       <p className="text-[11px] text-indigo-600/80 mt-1">Balance: ₹{summary.balance.toLocaleString()}</p>
                     </div>
-                    
+
                     {/* Ring progress simulation */}
                     <div className="relative h-14 w-14 flex items-center justify-center bg-white rounded-full shadow-inner border border-indigo-100">
                       <PiggyBank className="h-6 w-6 text-indigo-600" />
@@ -698,7 +697,7 @@ export default function SmartSpendApp() {
                             {day.amount > 0 ? `₹${day.amount}` : "0"}
                           </div>
                           <div className="w-5 bg-slate-100 rounded-t-md relative overflow-hidden h-14 flex items-end">
-                            <div 
+                            <div
                               className="w-full bg-indigo-500 hover:bg-indigo-600 transition-all rounded-t-md cursor-pointer"
                               style={{ height: `${heightPct}%` }}
                             />
@@ -759,8 +758,8 @@ export default function SmartSpendApp() {
                 <div className="space-y-1">
                   <h4 className="text-xs font-bold text-indigo-950">AI Fast Tip</h4>
                   <p className="text-[11px] text-indigo-800 text-sm leading-normal font-light">
-                    {topSpendingCategory 
-                      ? `Your highest expenditure is currently on **${topSpendingCategory[0]}** (₹${topSpendingCategory[1].toLocaleString()}). Log in to the Budget Planner tab to reduce your cap.` 
+                    {topSpendingCategory
+                      ? `Your highest expenditure is currently on **${topSpendingCategory[0]}** (₹${topSpendingCategory[1].toLocaleString()}). Log in to the Budget Planner tab to reduce your cap.`
                       : "No data is logged. Tap the bottom plus icon to insert your first wallet transaction!"}
                   </p>
                 </div>
@@ -771,7 +770,7 @@ export default function SmartSpendApp() {
           {/* TAB 2: TRANSACTIONS LOG */}
           {activeTab === "transactions" && (
             <div className="space-y-3.5 animate-fadeIn">
-              
+
               {/* Toolbar & Filters */}
               <div className="bg-white p-3 rounded-2xl border border-slate-100 space-y-3">
                 <div className="relative flex items-center">
@@ -785,16 +784,15 @@ export default function SmartSpendApp() {
                   />
                 </div>
 
-                <div className="flex items-center space-x-1.5">
+                <div className="flex-1 items-center space-x-1.5">
                   {(["all", "income", "expense"] as const).map((type) => (
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}
-                      className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg flex-1 transition-all border-0 cursor-pointer ${
-                        filterType === type
-                          ? "bg-slate-900 text-white"
-                          : "bg-slate-50 text-slate-500 hover:bg-slate-100"
-                      }`}
+                      className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg flex-1 transition-all border-0 cursor-pointer ${filterType === type
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                        }`}
                     >
                       {type === "all" ? "All" : type === "income" ? "Inflow" : "Outflow"}
                     </button>
@@ -803,7 +801,7 @@ export default function SmartSpendApp() {
               </div>
 
               {/* Transactions list */}
-              <div className="space-y-2 max-h-[480px] overflow-y-auto pr-0.5">
+              <div className="space-y-2 h-[100dvh] overflow-y-auto pr-0.5">
                 {processedTransactions.length === 0 ? (
                   <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center">
                     <p className="text-xs text-slate-400">No records found matching filters.</p>
@@ -842,9 +840,8 @@ export default function SmartSpendApp() {
 
                         <div className="flex items-center space-x-2 shrink-0">
                           <span
-                            className={`text-xs font-extrabold ${
-                              t.type === "income" ? "text-emerald-600" : "text-slate-800"
-                            }`}
+                            className={`text-xs font-extrabold ${t.type === "income" ? "text-emerald-600" : "text-slate-800"
+                              }`}
                           >
                             {t.type === "income" ? "+" : "-"}₹{t.amount.toLocaleString()}
                           </span>
@@ -874,15 +871,15 @@ export default function SmartSpendApp() {
 
           {/* TAB 3: BUDGET PLANNER */}
           {activeTab === "budgets" && (
-            <div className="space-y-4 animate-fadeIn max-h-[480px] overflow-y-auto pr-0.5">
-              <div className="bg-gradient-to-tr from-indigo-500 to-indigo-600 p-4 rounded-2xl text-white shadow-md">
+            <div className="space-y-4 animate-fadeIn h-[100dvh] overflow-y-auto pr-0.5">
+              <div className="  bg-gradient-to-tr from-indigo-500 to-indigo-600 p-4 rounded-2xl text-white shadow-md">
                 <h3 className="text-sm font-bold">Category Budgets</h3>
                 <p className="text-[11px] text-indigo-100 font-light mt-1">
                   Adjust limits to control monthly expenses. Click any card to edit details.
                 </p>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 ">
                 {budgets.map((b) => {
                   const info = categories[b.category] || { color: "#64748b" };
                   const expSum = categoryExpenses[b.category] || 0;
@@ -937,8 +934,8 @@ export default function SmartSpendApp() {
 
           {/* TAB 4: AI INSIGHTS */}
           {activeTab === "ai" && (
-            <div className="flex flex-col h-[520px] bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden animate-fadeIn">
-              
+            <div className="flex flex-col h-[100dvh] bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden animate-fadeIn">
+
               {/* Sub-Header */}
               <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center space-x-2 shrink-0">
                 <div className="h-7 w-7 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
@@ -958,11 +955,10 @@ export default function SmartSpendApp() {
                     className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed ${
-                        msg.sender === "user"
-                          ? "bg-indigo-600 text-white rounded-tr-none"
-                          : "bg-slate-50 border border-slate-100 text-slate-700 rounded-tl-none"
-                      }`}
+                      className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed ${msg.sender === "user"
+                        ? "bg-indigo-600 text-white rounded-tr-none"
+                        : "bg-slate-50 border border-slate-100 text-slate-700 rounded-tl-none"
+                        }`}
                     >
                       <p className="whitespace-pre-line font-medium">{msg.text}</p>
                       <span className="block text-[8px] text-slate-400 text-right mt-1.5">
@@ -987,8 +983,8 @@ export default function SmartSpendApp() {
               </div>
 
               {/* Chat Form */}
-              <form 
-                onSubmit={handleAiSubmit} 
+              <form
+                onSubmit={handleAiSubmit}
                 className="p-2 border-t border-slate-100 bg-slate-50 flex items-center space-x-1.5 shrink-0"
               >
                 <input
@@ -1023,9 +1019,8 @@ export default function SmartSpendApp() {
         <nav className="sticky bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-100 flex items-center justify-around px-2 z-30 w-full shrink-0">
           <button
             onClick={() => setActiveTab("dashboard")}
-            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${
-              activeTab === "dashboard" ? "text-indigo-600 font-bold" : "text-slate-400 hover:text-slate-600"
-            }`}
+            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${activeTab === "dashboard" ? "text-indigo-600 font-bold" : "text-slate-400 hover:text-slate-600"
+              }`}
           >
             <ChartIcon className="h-4.5 w-4.5" />
             <span className="text-[9px] uppercase tracking-wider font-semibold">Home</span>
@@ -1033,9 +1028,8 @@ export default function SmartSpendApp() {
 
           <button
             onClick={() => setActiveTab("transactions")}
-            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${
-              activeTab === "transactions" ? "text-indigo-600 font-bold" : "text-slate-400 hover:text-slate-600"
-            }`}
+            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${activeTab === "transactions" ? "text-indigo-600 font-bold" : "text-slate-400 hover:text-slate-600"
+              }`}
           >
             <Layers className="h-4.5 w-4.5" />
             <span className="text-[9px] uppercase tracking-wider font-semibold">Logs</span>
@@ -1043,9 +1037,8 @@ export default function SmartSpendApp() {
 
           <button
             onClick={() => setActiveTab("budgets")}
-            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${
-              activeTab === "budgets" ? "text-indigo-600 font-bold" : "text-slate-400 hover:text-slate-600"
-            }`}
+            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${activeTab === "budgets" ? "text-indigo-600 font-bold" : "text-slate-400 hover:text-slate-600"
+              }`}
           >
             <CheckCircle className="h-4.5 w-4.5" />
             <span className="text-[9px] uppercase tracking-wider font-semibold">Budget</span>
@@ -1053,9 +1046,8 @@ export default function SmartSpendApp() {
 
           <button
             onClick={() => setActiveTab("ai")}
-            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${
-              activeTab === "ai" ? "text-indigo-600 font-bold" : "text-slate-400 hover:text-slate-600"
-            }`}
+            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${activeTab === "ai" ? "text-indigo-600 font-bold" : "text-slate-400 hover:text-slate-600"
+              }`}
           >
             <Sparkles className="h-4.5 w-4.5" />
             <span className="text-[9px] uppercase tracking-wider font-semibold">Insights</span>
@@ -1197,7 +1189,7 @@ export default function SmartSpendApp() {
                 </button>
               </CardHeader>
               <CardContent>
-                <form 
+                <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     const targetInput = document.getElementById("budget_cat_name_input") as HTMLInputElement;
@@ -1211,7 +1203,7 @@ export default function SmartSpendApp() {
                       }
                       return b;
                     });
-                    
+
                     if (newCatName !== currentCatName) {
                       const updatedTx = transactions.map((t) => {
                         if (t.category === currentCatName) {
@@ -1225,7 +1217,7 @@ export default function SmartSpendApp() {
                     setBudgets(updatedBudgets);
                     localStorage.setItem("ss_budgets", JSON.stringify(updatedBudgets));
                     setEditingCategoryBudget(null);
-                  }} 
+                  }}
                   className="space-y-4 text-xs text-slate-700"
                 >
                   <div>
@@ -1332,9 +1324,8 @@ export default function SmartSpendApp() {
                           key={color}
                           type="button"
                           onClick={() => setNewCategoryColor(color)}
-                          className={`h-6 w-6 rounded-full border-2 cursor-pointer transition-all ${
-                            newCategoryColor === color ? "border-slate-800 scale-110" : "border-transparent"
-                          }`}
+                          className={`h-6 w-6 rounded-full border-2 cursor-pointer transition-all ${newCategoryColor === color ? "border-slate-800 scale-110" : "border-transparent"
+                            }`}
                           style={{ backgroundColor: color }}
                         />
                       ))}
