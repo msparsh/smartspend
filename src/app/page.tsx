@@ -42,9 +42,9 @@ export default function SmartSpendApp() {
   // Auth / Onboarding State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User>({
-    name: "Guest Student",
+    name: "Local Student",
     college: "State University",
-    email: "guest@university.edu",
+    email: "local@university.edu",
     isLoggedIn: false,
     authProvider: "guest",
     allowance: 15000,
@@ -167,11 +167,11 @@ export default function SmartSpendApp() {
   };
 
   // Auth Operations
-  const handleLogin = (provider: "google" | "email" | "guest", name = "Guest User") => {
+  const handleLogin = (provider: "google" | "email" | "guest", name = "Local User") => {
     const updatedUser: User = {
       name,
-      college: provider === "guest" ? "University Campus" : "State Tech College",
-      email: provider === "guest" ? "guest@campus.edu" : `${name.toLowerCase().replace(/\s+/g, "")}@example.com`,
+      college: provider === "guest" ? "Local Device Database" : "State Tech College",
+      email: provider === "guest" ? "local@device.db" : `${name.toLowerCase().replace(/\s+/g, "")}@example.com`,
       isLoggedIn: true,
       authProvider: provider,
       allowance: 12000,
@@ -508,24 +508,14 @@ export default function SmartSpendApp() {
               </button>
 
               <button
-                onClick={() => handleLogin("email", "Taylor Chen")}
-                className="w-full border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 font-medium py-3 rounded-2xl flex items-center justify-center space-x-2 text-sm cursor-pointer transition-colors"
+                onClick={() => handleLogin("guest", "Local User")}
+                className="w-full border border-indigo-100 text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 font-semibold py-3 rounded-2xl flex flex-col items-center justify-center text-sm cursor-pointer transition-all"
               >
-                <span>Sign in with Email</span>
-              </button>
-
-              <div className="relative flex py-2 items-center justify-center">
-                <div className="flex-grow border-t border-slate-100"></div>
-                <span className="flex-shrink mx-4 text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Or</span>
-                <div className="flex-grow border-t border-slate-100"></div>
-              </div>
-
-              <button
-                onClick={() => handleLogin("guest")}
-                className="w-full text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50/50 font-semibold py-2 rounded-xl flex items-center justify-center space-x-1.5 text-xs cursor-pointer transition-all bg-transparent border-0"
-              >
-                <span>Quick Guest Login</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                <div className="flex items-center space-x-1.5">
+                  <span>Go Local (Offline Mode)</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-[10px] text-slate-500 font-normal mt-0.5">100% Private • Stores data locally on your device</span>
               </button>
             </div>
 
@@ -700,7 +690,7 @@ export default function SmartSpendApp() {
                 <Bot className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5 animate-pulse" />
                 <div className="space-y-1">
                   <h4 className="text-xs font-bold text-indigo-950">AI Fast Tip</h4>
-                  <p className="text-[11px] text-indigo-800 leading-normal font-light">
+                  <p className="text-[11px] text-indigo-800 text-sm leading-normal font-light">
                     {topSpendingCategory 
                       ? `Your highest expenditure is currently on **${topSpendingCategory[0]}** (₹${topSpendingCategory[1].toLocaleString()}). Log in to the Budget Planner tab to reduce your cap.` 
                       : "No data is logged. Tap the bottom plus icon to insert your first wallet transaction!"}
@@ -817,24 +807,28 @@ export default function SmartSpendApp() {
           {/* TAB 3: BUDGET PLANNER */}
           {activeTab === "budgets" && (
             <div className="space-y-4 animate-fadeIn">
-              
               <div className="bg-gradient-to-tr from-indigo-500 to-indigo-600 p-4 rounded-2xl text-white shadow-md">
                 <h3 className="text-sm font-bold">Category Budgets</h3>
                 <p className="text-[11px] text-indigo-100 font-light mt-1">
-                  Adjust limits to control monthly expenses. Progress bars warn you as you near thresholds.
+                  Adjust limits to control monthly expenses. Click any card to edit details.
                 </p>
               </div>
 
-              {/* Budget slider lists */}
               <div className="space-y-3">
                 {budgets.map((b) => {
                   const info = CATEGORIES[b.category] || { color: "#64748b" };
                   const expSum = categoryExpenses[b.category] || 0;
                   const ratio = Math.min(100, Math.round((expSum / b.limit) * 100));
-                  const isEditing = editingCategoryBudget === b.category;
 
                   return (
-                    <Card key={b.category} className="border-slate-100 bg-white shadow-sm">
+                    <Card
+                      key={b.category}
+                      onClick={() => {
+                        setEditingCategoryBudget(b.category);
+                        setBudgetLimitInput(b.limit.toString());
+                      }}
+                      className="border-slate-100 bg-white shadow-sm hover:border-indigo-200 transition-all cursor-pointer"
+                    >
                       <CardContent className="p-3.5">
                         <div className="flex items-center justify-between text-xs mb-2">
                           <div>
@@ -843,38 +837,9 @@ export default function SmartSpendApp() {
                               Spent: ₹{expSum.toLocaleString()}
                             </span>
                           </div>
-
-                          {isEditing ? (
-                            <form 
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                handleUpdateBudget(b.category, Number(budgetLimitInput) || 500);
-                              }}
-                              className="flex items-center space-x-1.5"
-                            >
-                              <input
-                                type="number"
-                                required
-                                value={budgetLimitInput}
-                                onChange={(e) => setBudgetLimitInput(e.target.value)}
-                                className="w-18 bg-slate-50 border border-slate-300 rounded px-1.5 py-0.5 text-xs font-bold text-slate-700 focus:outline-none"
-                                autoFocus
-                              />
-                              <button type="submit" className="h-6 px-2 bg-indigo-600 hover:bg-indigo-500 text-[10px] text-white rounded border-0 cursor-pointer">
-                                Set
-                              </button>
-                            </form>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setEditingCategoryBudget(b.category);
-                                setBudgetLimitInput(b.limit.toString());
-                              }}
-                              className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-2 py-1 rounded border-0 cursor-pointer"
-                            >
-                              Limit: ₹{b.limit.toLocaleString()}
-                            </button>
-                          )}
+                          <span className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-2 py-1 rounded">
+                            Limit: ₹{b.limit.toLocaleString()}
+                          </span>
                         </div>
 
                         {/* Progress Bar */}
@@ -883,7 +848,7 @@ export default function SmartSpendApp() {
                             className="h-full rounded-full transition-all duration-300"
                             style={{
                               width: `${ratio}%`,
-                              backgroundColor: ratio > 90 ? "#ef4444" : ratio > 75 ? "#f59e0b" : info.color,
+                              backgroundColor: ratio > 90 ? "#ef4444" : ratio > 75 ? "#f59e0b" : info.color || "#6366f1",
                             }}
                           />
                         </div>
@@ -977,7 +942,7 @@ export default function SmartSpendApp() {
         </main>
 
         {/* Global Floating Actions Add Button */}
-        {activeTab === "transactions" && (
+        {(activeTab === "transactions" || activeTab === "budgets") && (
           <button
             onClick={openAddModal}
             className="absolute bottom-18 right-5 h-12 w-12 bg-indigo-600 hover:bg-indigo-500 rounded-full text-white flex items-center justify-center shadow-lg shadow-indigo-600/35 transition-all z-20 border-0 cursor-pointer"
@@ -987,7 +952,7 @@ export default function SmartSpendApp() {
         )}
 
         {/* Bottom Tab Bar Navigation */}
-        <nav className="absolute bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-100 flex items-center justify-around px-2 z-30">
+        <nav className="sticky bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-100 flex items-center justify-around px-2 z-30 w-full shrink-0">
           <button
             onClick={() => setActiveTab("dashboard")}
             className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${
@@ -1137,6 +1102,99 @@ export default function SmartSpendApp() {
                       className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs py-1.5 px-4 shadow-md border-0 cursor-pointer font-semibold"
                     >
                       {editingTransaction ? "Update" : "Save"}
+                    </button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Budget Edit Modal Dialog */}
+        {editingCategoryBudget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-xs p-4">
+            <Card className="bg-white border-slate-100 max-w-sm w-full shadow-2xl relative animate-scaleIn">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold text-slate-800">
+                  Edit Category Budget
+                </CardTitle>
+                <CardDescription className="text-[10px] text-slate-400 font-medium">
+                  Rename this category or adjust its monthly spending limit.
+                </CardDescription>
+                <button
+                  onClick={() => setEditingCategoryBudget(null)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg font-bold border-0 bg-transparent cursor-pointer"
+                >
+                  &times;
+                </button>
+              </CardHeader>
+              <CardContent>
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const targetInput = document.getElementById("budget_cat_name_input") as HTMLInputElement;
+                    const limitVal = Number(budgetLimitInput) || 500;
+                    const currentCatName = editingCategoryBudget;
+                    const newCatName = targetInput?.value?.trim() || currentCatName;
+
+                    let updatedBudgets = budgets.map((b) => {
+                      if (b.category === currentCatName) {
+                        return { ...b, category: newCatName, limit: limitVal };
+                      }
+                      return b;
+                    });
+                    
+                    if (newCatName !== currentCatName) {
+                      const updatedTx = transactions.map((t) => {
+                        if (t.category === currentCatName) {
+                          return { ...t, category: newCatName };
+                        }
+                        return t;
+                      });
+                      saveTransactionsLocal(updatedTx);
+                    }
+
+                    setBudgets(updatedBudgets);
+                    localStorage.setItem("ss_budgets", JSON.stringify(updatedBudgets));
+                    setEditingCategoryBudget(null);
+                  }} 
+                  className="space-y-4 text-xs text-slate-700"
+                >
+                  <div>
+                    <label className="block font-bold text-slate-500 mb-1">Category Name</label>
+                    <input
+                      type="text"
+                      id="budget_cat_name_input"
+                      required
+                      defaultValue={editingCategoryBudget}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-400 focus:bg-white text-xs font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-500 mb-1">Limit (₹)</label>
+                    <input
+                      type="number"
+                      required
+                      value={budgetLimitInput}
+                      onChange={(e) => setBudgetLimitInput(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-400 focus:bg-white text-xs font-bold"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex justify-end space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingCategoryBudget(null)}
+                      className="border border-slate-200 text-slate-400 hover:bg-slate-50 rounded-xl text-xs py-1.5 px-3 bg-transparent cursor-pointer font-semibold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs py-1.5 px-4 shadow-md border-0 cursor-pointer font-semibold"
+                    >
+                      Save Changes
                     </button>
                   </div>
                 </form>
