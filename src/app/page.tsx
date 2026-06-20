@@ -372,6 +372,22 @@ export default function SmartSpendApp() {
     return sums;
   }, [transactions]);
 
+  // Safe to Spend Today calculation
+  const safeToSpendToday = useMemo(() => {
+    // Default to the user's allowance if no specific income logs exist yet
+    const totalFunds = summary.income > 0 ? summary.income : user.allowance;
+    const remainingFunds = Math.max(0, totalFunds - summary.expense);
+
+    const today = new Date();
+    // Get the last day of the current month
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    // Calculate days remaining (adding 1 to include today)
+    const daysLeft = endOfMonth.getDate() - today.getDate() + 1;
+
+    return Math.floor(remainingFunds / daysLeft);
+  }, [summary.income, summary.expense, user.allowance]);
+
+
   // Sparkline/trend data (last 7 days containing expenses)
   const trendDays = useMemo(() => {
     const daySums: Record<string, number> = {};
@@ -404,7 +420,7 @@ export default function SmartSpendApp() {
         {
           id: "greet",
           sender: "ai",
-          text: `👋 Hey there! I'm your SmartSpend Advisor.\n\nI can analyze your transactions and help you keep your budget on track. Ask me questions like:\n• *Am I spending too much on Food?*\n• *How is my savings rate doing?*\n• *Give me a quick summary of this month's expenses.*`,
+          text: `👋 Hey there! I'm your SmartSpend Advisor.\n\nI can analyze your transactions and help you keep your budget on track. Ask me questions like:\n• Am I spending too much on Food?\n• How is my savings rate doing?\n• Give me a quick summary of this month's expenses.`,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -675,6 +691,28 @@ export default function SmartSpendApp() {
                   </CardContent>
                 </Card>
               </div>
+
+              <Card className="border-slate-100 shadow-sm bg-gradient-to-r from-emerald-50 to-teal-50">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                      Safe to Spend Today
+                    </span>
+                    <p className="text-2xl font-black text-emerald-900 mt-0.5">
+                      ₹{safeToSpendToday.toLocaleString()}
+                    </p>
+                    <p className="text-[11px] text-emerald-700/80 mt-1">
+                      To stay under your monthly limit
+                    </p>
+                  </div>
+
+                  {/* Visual Icon Badge */}
+                  <div className="relative h-14 w-14 flex items-center justify-center bg-white rounded-full shadow-inner border border-emerald-100">
+                    <CheckCircle className="h-6 w-6 text-emerald-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
 
               {/* Monthly Trend Chart (SVG / HTML-based for lightweight visual perfection) */}
               <Card className="border-slate-100 shadow-sm bg-white">
