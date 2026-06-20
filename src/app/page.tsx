@@ -602,8 +602,7 @@ export default function SmartSpendApp() {
   return (
     <div className="min-h-screen bg-slate-100 flex justify-center py-0 sm:py-6">
       {/* Mobile Screen Wrapper Frame */}
-      <div className="w-full max-w-md bg-slate-50 sm:border sm:border-slate-200 sm:rounded-3xl shadow-xl flex flex-col min-h-screen sm:min-h-[812px] relative overflow-hidden">
-
+      <div className="w-full max-w-md bg-slate-50 sm:border sm:border-slate-200 sm:rounded-3xl shadow-xl flex flex-col h-[100dvh] sm:h-[812px] relative overflow-hidden">
         {/* App Header */}
         <header className="bg-white border-b border-slate-100 px-4 py-3 sticky top-0 z-30 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
@@ -636,12 +635,9 @@ export default function SmartSpendApp() {
         </header>
 
         {/* Tab Content Area */}
-        <main className="flex-1 h-[100dvh] overflow-y-auto pb-20 px-4 pt-4">
-
-          {/* TAB 1: DASHBOARD */}
+        <main className="flex-1 overflow-y-auto pb-20 px-4 pt-4 flex flex-col">          {/* TAB 1: DASHBOARD */}
           {activeTab === "dashboard" && (
-            <div className="space-y-4 animate-fadeIn h-[100dvh] overflow-y-auto pr-0.5">
-
+            <div className="space-y-4 animate-fadeIn">
               {/* Financial Cards */}
               <div className="grid grid-cols-2 gap-3">
                 <Card className="border-slate-100 shadow-sm bg-white">
@@ -801,83 +797,81 @@ export default function SmartSpendApp() {
               </div>
 
               {/* Transactions list */}
-              <div className="space-y-2 h-[100dvh] overflow-y-auto pr-0.5">
-                {processedTransactions.length === 0 ? (
-                  <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center">
-                    <p className="text-xs text-slate-400">No records found matching filters.</p>
-                  </div>
-                ) : (
-                  processedTransactions.map((t) => {
-                    const info = categories[t.category] || { icon: "Coins", color: "#64748b" };
-                    return (
-                      <div
-                        key={t.id}
-                        className="bg-white border border-slate-100 hover:border-slate-200/80 p-3 rounded-2xl flex items-center justify-between shadow-sm transition-all duration-200"
-                      >
-                        <div className="flex items-center space-x-3 min-w-0">
-                          <div
-                            className="h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
-                            style={{ backgroundColor: `${info.color}15`, color: info.color }}
-                          >
-                            {t.category.charAt(0)}
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="text-xs font-bold text-slate-800 truncate">
-                              {t.note || t.category}
-                            </h4>
-                            <div className="flex items-center space-x-1.5 text-[10px] text-slate-400 mt-0.5">
-                              <span>{t.category}</span>
-                              <span>•</span>
-                              <span>{t.date}</span>
-                              {t.recurring && (
-                                <span className="bg-indigo-50 text-indigo-600 px-1 rounded-sm text-[8px] font-semibold">
-                                  Recur
-                                </span>
-                              )}
-                            </div>
-                          </div>
+              <div className="space-y-2">                {processedTransactions.length === 0 ? (
+                <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center">
+                  <p className="text-xs text-slate-400">No records found matching filters.</p>
+                </div>
+              ) : (
+                processedTransactions.map((t) => {
+                  const info = categories[t.category] || { icon: "Coins", color: "#64748b" };
+                  return (
+                    <div
+                      key={t.id}
+                      className="bg-white border border-slate-100 hover:border-slate-200/80 p-3 rounded-2xl flex items-center justify-between shadow-sm transition-all duration-200"
+                    >
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div
+                          className="h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
+                          style={{ backgroundColor: `${info.color}15`, color: info.color }}
+                        >
+                          {t.category.charAt(0)}
                         </div>
-
-                        <div className="flex items-center space-x-2 shrink-0">
-                          <span
-                            className={`text-xs font-extrabold ${t.type === "income" ? "text-emerald-600" : "text-slate-800"
-                              }`}
-                          >
-                            {t.type === "income" ? "+" : "-"}₹{t.amount.toLocaleString()}
-                          </span>
-
-                          <div className="flex items-center border-l border-slate-100 pl-2 space-x-1">
-                            <button
-                              onClick={() => openEditModal(t)}
-                              className="p-1 text-slate-400 hover:text-slate-600 transition-colors border-0 bg-transparent cursor-pointer"
-                            >
-                              <Edit2 className="h-3 w-3" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTransaction(t.id)}
-                              className="p-1 text-slate-400 hover:text-rose-500 transition-colors border-0 bg-transparent cursor-pointer"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-slate-800 truncate">
+                            {t.note || t.category}
+                          </h4>
+                          <div className="flex items-center space-x-1.5 text-[10px] text-slate-400 mt-0.5">
+                            <span>{t.category}</span>
+                            <span>•</span>
+                            <span>{t.date}</span>
+                            {t.recurring && (
+                              <span className="bg-indigo-50 text-indigo-600 px-1 rounded-sm text-[8px] font-semibold">
+                                Recur
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
-                    );
-                  })
-                )}
+
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <span
+                          className={`text-xs font-extrabold ${t.type === "income" ? "text-emerald-600" : "text-slate-800"
+                            }`}
+                        >
+                          {t.type === "income" ? "+" : "-"}₹{t.amount.toLocaleString()}
+                        </span>
+
+                        <div className="flex items-center border-l border-slate-100 pl-2 space-x-1">
+                          <button
+                            onClick={() => openEditModal(t)}
+                            className="p-1 text-slate-400 hover:text-slate-600 transition-colors border-0 bg-transparent cursor-pointer"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTransaction(t.id)}
+                            className="p-1 text-slate-400 hover:text-rose-500 transition-colors border-0 bg-transparent cursor-pointer"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
               </div>
             </div>
           )}
 
           {/* TAB 3: BUDGET PLANNER */}
           {activeTab === "budgets" && (
-            <div className="space-y-4 animate-fadeIn h-[100dvh] overflow-y-auto pr-0.5">
-              <div className="  bg-gradient-to-tr from-indigo-500 to-indigo-600 p-4 rounded-2xl text-white shadow-md">
-                <h3 className="text-sm font-bold">Category Budgets</h3>
-                <p className="text-[11px] text-indigo-100 font-light mt-1">
-                  Adjust limits to control monthly expenses. Click any card to edit details.
-                </p>
-              </div>
+            <div className="space-y-4 animate-fadeIn">              <div className="  bg-gradient-to-tr from-indigo-500 to-indigo-600 p-4 rounded-2xl text-white shadow-md">
+              <h3 className="text-sm font-bold">Category Budgets</h3>
+              <p className="text-[11px] text-indigo-100 font-light mt-1">
+                Adjust limits to control monthly expenses. Click any card to edit details.
+              </p>
+            </div>
 
               <div className="space-y-3 ">
                 {budgets.map((b) => {
@@ -934,8 +928,7 @@ export default function SmartSpendApp() {
 
           {/* TAB 4: AI INSIGHTS */}
           {activeTab === "ai" && (
-            <div className="flex flex-col h-[100dvh] bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden animate-fadeIn">
-
+            <div className="flex flex-col flex-1 bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden animate-fadeIn">
               {/* Sub-Header */}
               <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center space-x-2 shrink-0">
                 <div className="h-7 w-7 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
@@ -1016,15 +1009,14 @@ export default function SmartSpendApp() {
         )}
 
         {/* Bottom Tab Bar Navigation */}
-        <nav className="sticky bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-100 flex items-center justify-around px-2 z-30 w-full shrink-0">
-          <button
-            onClick={() => setActiveTab("dashboard")}
-            className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${activeTab === "dashboard" ? "text-indigo-600 font-bold" : "text-slate-400 hover:text-slate-600"
-              }`}
-          >
-            <ChartIcon className="h-4.5 w-4.5" />
-            <span className="text-[9px] uppercase tracking-wider font-semibold">Home</span>
-          </button>
+        <nav className="absolute bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-100 flex items-center justify-around px-2 z-30 w-full shrink-0">          <button
+          onClick={() => setActiveTab("dashboard")}
+          className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 border-0 bg-transparent cursor-pointer ${activeTab === "dashboard" ? "text-indigo-600 font-bold" : "text-slate-400 hover:text-slate-600"
+            }`}
+        >
+          <ChartIcon className="h-4.5 w-4.5" />
+          <span className="text-[9px] uppercase tracking-wider font-semibold">Home</span>
+        </button>
 
           <button
             onClick={() => setActiveTab("transactions")}
