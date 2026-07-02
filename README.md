@@ -2,7 +2,7 @@
 
 ## To serve web
 ```
-npx serve out
+npm run dev
 ```
 
 ## To build apk

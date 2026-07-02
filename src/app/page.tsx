@@ -226,6 +226,19 @@ export default function SmartSpendApp() {
       }
     }
 
+    /* OAuth error handling is disabled
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const oauthError = urlParams.get("error_description") || urlParams.get("error");
+      if (oauthError) {
+        setAuthError(oauthError);
+        setShowEmailForm(true);
+        window.history.replaceState({}, document.title, window.location.origin);
+      }
+    }
+    */
+
+    /* OAuth redirect param check is disabled
     const hasRedirectParams = typeof window !== "undefined" && 
       (window.location.search.includes("code=") || window.location.hash.includes("access_token="));
 
@@ -233,6 +246,7 @@ export default function SmartSpendApp() {
     if (hasRedirectParams) {
       setIsAuthLoading(true);
     }
+    */
     
     setIsMounted(true);
   }, []);
@@ -253,27 +267,34 @@ export default function SmartSpendApp() {
     }
 
     const cleanUrl = () => {
+      /* cleanUrl is disabled for OAuth
       if (typeof window !== "undefined" && (window.location.search.includes('code=') || window.location.hash.includes('access_token='))) {
         window.history.replaceState({}, document.title, window.location.origin);
       }
+      */
     };
 
     const handleSession = (session: any) => {
-      if (session) {
-        const loggedInUser: User = {
-          name: session.user.user_metadata.full_name || "Cloud User",
-          email: session.user.email || "",
-          college: "Cloud DB",
-          isLoggedIn: true,
-          authProvider: session.user.app_metadata.provider === "google" ? "google" : "email",
-          allowance: 15000,
-        };
-        setUser(loggedInUser);
-        setIsLoggedIn(true);
-        localStorage.setItem("ss_auth", JSON.stringify(loggedInUser));
-        cleanUrl();
+      try {
+        if (session && session.user) {
+          const loggedInUser: User = {
+            name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || "Cloud User",
+            email: session.user.email || "",
+            college: "Cloud DB",
+            isLoggedIn: true,
+            authProvider: session.user.app_metadata?.provider === "google" ? "google" : "email",
+            allowance: 15000,
+          };
+          setUser(loggedInUser);
+          setIsLoggedIn(true);
+          localStorage.setItem("ss_auth", JSON.stringify(loggedInUser));
+          cleanUrl();
+        }
+      } catch (err) {
+        console.error("Error handling session payload:", err);
+      } finally {
+        setIsAuthLoading(false);
       }
-      setIsAuthLoading(false);
     };
 
     // Safety timeout: Ensure loading is disabled after 5 seconds and URL is cleaned up
@@ -283,48 +304,61 @@ export default function SmartSpendApp() {
     }, 5000);
 
     // Check existing session
-    client.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        handleSession(session);
-      } else {
-        const hasRedirectParams = typeof window !== "undefined" && 
-          (window.location.search.includes("code=") || window.location.hash.includes("access_token="));
-        if (!hasRedirectParams) {
-          setIsAuthLoading(false);
+    try {
+      client.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          handleSession(session);
         } else {
-          // If we had redirect params but no session was restored immediately,
-          // clean URL and stop loading.
-          cleanUrl();
+          /* OAuth redirect params check disabled
+          const hasRedirectParams = typeof window !== "undefined" && 
+            (window.location.search.includes("code=") || window.location.hash.includes("access_token="));
+          if (!hasRedirectParams) {
+            setIsAuthLoading(false);
+          }
+          */
           setIsAuthLoading(false);
         }
-      }
-    }).catch(() => {
-      setIsAuthLoading(false);
-      cleanUrl();
-    });
-
-    const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        handleSession(session);
-      } else {
-        const savedAuth = localStorage.getItem("ss_auth");
-        if (savedAuth) {
-          try {
-            const authData = JSON.parse(savedAuth);
-            if (authData.authProvider === "guest" && authData.isLoggedIn) {
-              setIsAuthLoading(false);
-              return;
-            }
-          } catch (e) { }
-        }
-        setIsLoggedIn(false);
-        setUser((prev) => ({ ...prev, isLoggedIn: false }));
+      }).catch((err) => {
+        console.error("Supabase getSession error:", err);
         setIsAuthLoading(false);
-      }
-    });
+        cleanUrl();
+      });
+    } catch (err) {
+      console.error("Supabase getSession sync error:", err);
+      setIsAuthLoading(false);
+    }
+
+    let subscription: any = null;
+    try {
+      const res = client.auth.onAuthStateChange((event, session) => {
+        if (session) {
+          handleSession(session);
+        } else {
+          const savedAuth = localStorage.getItem("ss_auth");
+          if (savedAuth) {
+            try {
+              const authData = JSON.parse(savedAuth);
+              if (authData.authProvider === "guest" && authData.isLoggedIn) {
+                setIsAuthLoading(false);
+                return;
+              }
+            } catch (e) { }
+          }
+          setIsLoggedIn(false);
+          setUser((prev) => ({ ...prev, isLoggedIn: false }));
+          setIsAuthLoading(false);
+        }
+      });
+      subscription = res.data?.subscription;
+    } catch (err) {
+      console.error("Supabase onAuthStateChange error:", err);
+      setIsAuthLoading(false);
+    }
 
     return () => {
-      subscription.unsubscribe();
+      if (subscription) {
+        subscription.unsubscribe();
+      }
       clearTimeout(safetyTimeout);
     };
   }, []);
@@ -382,6 +416,7 @@ export default function SmartSpendApp() {
 
   // Auth Operations
   const handleLogin = async (provider: "google" | "email" | "guest", name = "Local User") => {
+    /* Google login is disabled
     if (provider === "google" && supabase) {
       // Trigger Supabase Google Login
       const { error } = await supabase.auth.signInWithOAuth({
@@ -390,6 +425,7 @@ export default function SmartSpendApp() {
       if (error) console.error("Login failed:", error);
       return;
     }
+    */
 
     // Keep your existing Guest offline logic
     const updatedUser: User = {
@@ -600,7 +636,8 @@ export default function SmartSpendApp() {
   const categoryExpenses = useMemo(() => {
     const sums: Record<string, number> = {};
     transactions.filter(t => t.type === "expense").forEach(t => {
-      sums[t.category] = (sums[t.category] || 0) + t.amount;
+      const cat = t.category || "Others";
+      sums[cat] = (sums[cat] || 0) + t.amount;
     });
     return sums;
   }, [transactions]);
@@ -777,7 +814,7 @@ export default function SmartSpendApp() {
     return transactions.filter((t) => {
       const matchesSearch =
         (t.note || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.category.toLowerCase().includes(searchQuery.toLowerCase());
+        (t.category || "").toLowerCase().includes(searchQuery.toLowerCase());
       const matchesFilter =
         filterType === "all" ||
         (filterType === "income" && t.type === "income") ||
@@ -786,18 +823,8 @@ export default function SmartSpendApp() {
     });
   }, [transactions, searchQuery, filterType]);
 
-  if (!isMounted || isAuthLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-xl flex flex-col items-center justify-center p-8 min-h-[680px]">
-          <div className="h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl animate-pulse">
-            <Wallet className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">SmartSpend</h2>
-          <p className="text-sm text-slate-500 animate-pulse">Connecting to service...</p>
-        </div>
-      </div>
-    );
+  if (!isMounted) {
+    return null;
   }
 
   // Render Landing / Onboarding Screen
@@ -940,8 +967,9 @@ export default function SmartSpendApp() {
             ) : (
               <div className="space-y-3 pt-2">
                 <button
-                  onClick={() => handleLogin("google", "Alex Rivera")}
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-2xl flex items-center justify-center space-x-2 text-sm shadow-md cursor-pointer transition-colors"
+                  disabled
+                  // onClick={() => handleLogin("google", "Alex Rivera")}
+                  className="w-full bg-slate-200 text-slate-400 font-medium py-3 rounded-2xl flex items-center justify-center space-x-2 text-sm cursor-not-allowed transition-colors"
                 >
                   <span>Continue with Google</span>
                 </button>
@@ -1207,7 +1235,8 @@ export default function SmartSpendApp() {
                 </div>
               ) : (
                 processedTransactions.map((t) => {
-                  const info = categories[t.category] || { icon: "Coins", color: "#64748b" };
+                  const catName = t.category || "Others";
+                  const info = categories[catName] || { icon: "Coins", color: "#64748b" };
                   return (
                     <div
                       key={t.id}
@@ -1218,14 +1247,14 @@ export default function SmartSpendApp() {
                           className="h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
                           style={{ backgroundColor: `${info.color}15`, color: info.color }}
                         >
-                          {t.category.charAt(0)}
+                          {catName.charAt(0)}
                         </div>
                         <div className="min-w-0">
                           <h4 className="text-xs font-bold text-slate-800 truncate">
-                            {t.note || t.category}
+                            {t.note || catName}
                           </h4>
                           <div className="flex items-center space-x-1.5 text-[10px] text-slate-400 mt-0.5">
-                            <span>{t.category}</span>
+                            <span>{catName}</span>
                             <span>•</span>
                             <span>{t.date}</span>
                             {t.recurring && (
