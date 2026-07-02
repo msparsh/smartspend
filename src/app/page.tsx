@@ -50,6 +50,13 @@ export default function SmartSpendApp() {
     allowance: 15000,
   });
 
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authName, setAuthName] = useState("");
+  const [authError, setAuthError] = useState("");
+
   // Navigation State
   const [activeTab, setActiveTab] = useState<"dashboard" | "transactions" | "budgets" | "ai">("dashboard");
 
@@ -180,20 +187,130 @@ export default function SmartSpendApp() {
     loadInitialData();
   }, []);
 
+  useEffect(() => {
+    if (!supabase) return;
+
+    // 1. Check for an existing session on initial load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        const loggedInUser: User = {
+          name: session.user.user_metadata.full_name || "Cloud User",
+          email: session.user.email || "",
+          college: "Cloud DB",
+          isLoggedIn: true,
+          authProvider: session.user.app_metadata.provider === "google" ? "google" : "email",
+          allowance: 15000,
+        };
+        setUser(loggedInUser);
+        setIsLoggedIn(true);
+        localStorage.setItem("ss_auth", JSON.stringify(loggedInUser));
+      }
+    });
+
+    // 2. Listen for auth changes (like returning from Google OAuth or email sign in)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        const loggedInUser: User = {
+          name: session.user.user_metadata.full_name || "Cloud User",
+          email: session.user.email || "",
+          college: "Cloud DB",
+          isLoggedIn: true,
+          authProvider: session.user.app_metadata.provider === "google" ? "google" : "email",
+          allowance: 15000,
+        };
+        setUser(loggedInUser);
+        setIsLoggedIn(true);
+        localStorage.setItem("ss_auth", JSON.stringify(loggedInUser));
+      } else {
+        // Only log out if they were not logged in as a guest
+        const savedAuth = localStorage.getItem("ss_auth");
+        if (savedAuth) {
+          try {
+            const authData = JSON.parse(savedAuth);
+            if (authData.authProvider === "guest") {
+              return; // Keep Guest logged in
+            }
+          } catch (e) {}
+        }
+        setIsLoggedIn(false); // They logged out
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   // Save transactions to local storage helper
   const saveTransactionsLocal = (updatedTx: Transaction[]) => {
     setTransactions(updatedTx);
     localStorage.setItem("ss_transactions", JSON.stringify(updatedTx));
   };
 
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+
+    if (!supabase) {
+      setAuthError("Database is not connected.");
+      return;
+    }
+
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email: authEmail,
+          password: authPassword,
+          options: {
+            data: {
+              full_name: authName || "Cloud User",
+            },
+          },
+        });
+
+        if (error) {
+          setAuthError(error.message);
+        } else if (data.user && !data.session) {
+          alert("Please check your email to confirm registration!");
+          setShowEmailForm(false);
+        } else if (data.session) {
+          setShowEmailForm(false);
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: authPassword,
+        });
+
+        if (error) {
+          setAuthError(error.message);
+        } else {
+          setShowEmailForm(false);
+        }
+      }
+    } catch (err: any) {
+      setAuthError(err.message || "An error occurred during authentication.");
+    }
+  };
+
   // Auth Operations
-  const handleLogin = (provider: "google" | "email" | "guest", name = "Local User") => {
+  const handleLogin = async (provider: "google" | "email" | "guest", name = "Local User") => {
+    if (provider === "google" && supabase) {
+      // Trigger Supabase Google Login
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      if (error) console.error("Login failed:", error);
+      return; 
+    }
+
+    // Keep your existing Guest offline logic
     const updatedUser: User = {
       name,
-      college: provider === "guest" ? "Local Device Database" : "State Tech College",
-      email: provider === "guest" ? "local@device.db" : `${name.toLowerCase().replace(/\s+/g, "")}@example.com`,
+      college: "Local Device Database",
+      email: "local@device.db",
       isLoggedIn: true,
-      authProvider: provider,
+      authProvider: "guest",
       allowance: 12000,
     };
     setUser(updatedUser);
@@ -201,7 +318,13 @@ export default function SmartSpendApp() {
     localStorage.setItem("ss_auth", JSON.stringify(updatedUser));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (user.authProvider !== "guest" && supabase) {
+      // Log out of Supabase
+      await supabase.auth.signOut();
+    }
+    
+    // Clear local app state
     const loggedOutUser = { ...user, isLoggedIn: false };
     setUser(loggedOutUser);
     setIsLoggedIn(false);
@@ -583,25 +706,111 @@ export default function SmartSpendApp() {
             </div>
 
             {/* Auth Buttons */}
-            <div className="space-y-3 pt-2">
-              <button
-                onClick={() => handleLogin("google", "Alex Rivera")}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-2xl flex items-center justify-center space-x-2 text-sm shadow-md cursor-pointer transition-colors"
-              >
-                <span>Continue with Google</span>
-              </button>
-
-              <button
-                onClick={() => handleLogin("guest", "Local User")}
-                className="w-full border border-indigo-100 text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 font-semibold py-3 rounded-2xl flex flex-col items-center justify-center text-sm cursor-pointer transition-all"
-              >
-                <div className="flex items-center space-x-1.5">
-                  <span>Go Local (Offline Mode)</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
+            {showEmailForm ? (
+              <form onSubmit={handleEmailAuth} className="space-y-4 pt-2">
+                <h3 className="text-sm font-bold text-slate-800">
+                  {isSignUp ? "Create a Cloud Account" : "Sign In with Email"}
+                </h3>
+                {authError && (
+                  <div className="bg-rose-50 text-rose-600 border border-rose-100 p-2.5 rounded-xl text-xs">
+                    {authError}
+                  </div>
+                )}
+                {isSignUp && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Full Name</label>
+                    <input
+                      type="text"
+                      value={authName}
+                      onChange={(e) => setAuthName(e.target.value)}
+                      placeholder="Alex Rivera"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-800"
+                      required
+                    />
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Email Address</label>
+                  <input
+                    type="email"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-800"
+                    required
+                  />
                 </div>
-                <span className="text-[10px] text-slate-500 font-normal mt-0.5">100% Private • Stores data locally on your device</span>
-              </button>
-            </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Password</label>
+                  <input
+                    type="password"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-800"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-2xl flex items-center justify-center text-sm shadow-md cursor-pointer transition-colors"
+                >
+                  <span>{isSignUp ? "Sign Up" : "Sign In"}</span>
+                </button>
+                <div className="flex justify-between items-center text-xs pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSignUp(!isSignUp);
+                      setAuthError("");
+                    }}
+                    className="text-indigo-600 font-semibold hover:underline bg-transparent border-0 cursor-pointer"
+                  >
+                    {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEmailForm(false);
+                      setAuthError("");
+                    }}
+                    className="text-slate-500 hover:underline bg-transparent border-0 cursor-pointer"
+                  >
+                    Go Back
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-3 pt-2">
+                <button
+                  onClick={() => handleLogin("google", "Alex Rivera")}
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-2xl flex items-center justify-center space-x-2 text-sm shadow-md cursor-pointer transition-colors"
+                >
+                  <span>Continue with Google</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowEmailForm(true);
+                    setIsSignUp(false);
+                  }}
+                  className="w-full border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 font-semibold py-3 rounded-2xl flex items-center justify-center space-x-2 text-sm shadow-sm cursor-pointer transition-colors"
+                >
+                  <span>Continue with Email & Password</span>
+                </button>
+
+                <button
+                  onClick={() => handleLogin("guest", "Local User")}
+                  className="w-full border border-indigo-100 text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 font-semibold py-3 rounded-2xl flex flex-col items-center justify-center text-sm cursor-pointer transition-all"
+                >
+                  <div className="flex items-center space-x-1.5">
+                    <span>Go Local (Offline Mode)</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-normal mt-0.5">100% Private • Stores data locally on your device</span>
+                </button>
+              </div>
+            )}
 
             <p className="text-center text-[10px] text-slate-400 font-medium">
               By continuing, you agree to our SmartSpend terms of service.
