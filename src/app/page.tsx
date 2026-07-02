@@ -32,12 +32,13 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Transaction, CategoryName, CategoryInfo, AIMessage, TransactionType, Budget, User } from "@/lib/types";
-import { CATEGORIES, INITIAL_TRANSACTIONS, INITIAL_BUDGETS } from "@/lib/mockData";
+import { CATEGORIES, INITIAL_BUDGETS } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SmartSpendApp() {
   const [isMounted, setIsMounted] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   // Auth / Onboarding State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -110,88 +111,154 @@ export default function SmartSpendApp() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [aiMessages, isAiTyping]);
 
-  // Load Initial Data (Supabase or LocalStorage)
-  useEffect(() => {
-    const loadInitialData = async () => {
-      // Load login status
-      const savedAuth = localStorage.getItem("ss_auth");
-      if (savedAuth) {
-        try {
-          const authData = JSON.parse(savedAuth);
-          setUser(authData);
-          setIsLoggedIn(authData.isLoggedIn);
-        } catch (e) {
-          console.error(e);
-        }
-      }
+  // Helper to namespace localStorage keys for data isolation
+  const getStorageKey = (key: string, currentUser = user) => {
+    if (!currentUser || !currentUser.isLoggedIn) {
+      return `ss_${key}_anonymous`;
+    }
+    const identifier = currentUser.authProvider === "guest" 
+      ? "guest" 
+      : currentUser.email || "cloud";
+    return `ss_${key}_${identifier}`;
+  };
 
-      // Load Budgets
-      const savedBudgets = localStorage.getItem("ss_budgets");
-      if (savedBudgets) {
-        try {
-          setBudgets(JSON.parse(savedBudgets));
-        } catch (e) {
-          setBudgets(INITIAL_BUDGETS);
-        }
-      } else {
-        setBudgets(INITIAL_BUDGETS);
-        localStorage.setItem("ss_budgets", JSON.stringify(INITIAL_BUDGETS));
-      }
-
-      // Load Categories
-      const savedCategories = localStorage.getItem("ss_categories");
-      if (savedCategories) {
-        try {
-          setCategories(JSON.parse(savedCategories));
-        } catch (e) {
-          setCategories(CATEGORIES);
-        }
-      } else {
-        setCategories(CATEGORIES);
-        localStorage.setItem("ss_categories", JSON.stringify(CATEGORIES));
-      }
-
-      // Load Transactions
-      if (supabase) {
-        setDbStatus("connecting");
-        try {
-          const { data, error } = await supabase
-            .from("transactions")
-            .select("*")
-            .order("date", { ascending: false });
-
-          if (!error && data && data.length > 0) {
-            setTransactions(data as Transaction[]);
-            setDbStatus("supabase");
-            return;
-          }
-        } catch (err) {
-          console.error("Supabase error, using local fallback", err);
-        }
-      }
-
+  // Dynamically load user-specific data (transactions, budgets, categories)
+  const loadUserData = async (currentUser: User) => {
+    if (!currentUser.isLoggedIn) {
+      setTransactions([]);
+      setBudgets(INITIAL_BUDGETS);
+      setCategories(CATEGORIES);
       setDbStatus("offline");
-      const savedTx = localStorage.getItem("ss_transactions");
-      if (savedTx) {
-        try {
-          setTransactions(JSON.parse(savedTx));
-        } catch (e) {
-          setTransactions(INITIAL_TRANSACTIONS);
+      return;
+    }
+
+    // Load Budgets for this user
+    const budgetsKey = getStorageKey("budgets", currentUser);
+    const savedBudgets = localStorage.getItem(budgetsKey);
+    let currentBudgets = INITIAL_BUDGETS;
+    if (savedBudgets) {
+      try {
+        currentBudgets = JSON.parse(savedBudgets);
+      } catch (e) {
+        currentBudgets = INITIAL_BUDGETS;
+      }
+    } else {
+      localStorage.setItem(budgetsKey, JSON.stringify(INITIAL_BUDGETS));
+    }
+    setBudgets(currentBudgets);
+
+    // Load Categories for this user
+    const categoriesKey = getStorageKey("categories", currentUser);
+    const savedCategories = localStorage.getItem(categoriesKey);
+    let currentCategories = CATEGORIES;
+    if (savedCategories) {
+      try {
+        currentCategories = JSON.parse(savedCategories);
+      } catch (e) {
+        currentCategories = CATEGORIES;
+      }
+    } else {
+      localStorage.setItem(categoriesKey, JSON.stringify(CATEGORIES));
+    }
+    setCategories(currentCategories);
+
+    // Load Transactions
+    if (currentUser.authProvider !== "guest" && supabase) {
+      setDbStatus("connecting");
+      try {
+        const { data, error } = await supabase
+          .from("transactions")
+          .select("*")
+          .order("date", { ascending: false });
+
+        if (!error) {
+          // Properly set Cloud Transactions, even if there are 0 rows
+          setTransactions((data || []) as Transaction[]);
+          setDbStatus("supabase");
+          return;
+        } else {
+          console.error("Supabase query error:", error);
+          setDbStatus("offline");
+          setTransactions([]);
+          return; // Do not fall back to local/mock data
         }
-      } else {
-        setTransactions(INITIAL_TRANSACTIONS);
-        localStorage.setItem("ss_transactions", JSON.stringify(INITIAL_TRANSACTIONS));
+      } catch (err) {
+        console.error("Supabase connection error:", err);
+        setDbStatus("offline");
+        setTransactions([]);
+        return; // Do not fall back to local/mock data
+      }
+    }
+
+    // Fallback to local storage (Only for guest user)
+    setDbStatus("offline");
+    const txKey = getStorageKey("transactions", currentUser);
+    const savedTx = localStorage.getItem(txKey);
+    if (savedTx) {
+      try {
+        setTransactions(JSON.parse(savedTx));
+      } catch (e) {
+        setTransactions([]);
+      }
+    } else {
+      setTransactions([]);
+      localStorage.setItem(txKey, JSON.stringify([]));
+    }
+  };
+
+  // Mount effect: Load last logged in auth state
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    setFormDate(today);
+
+    const savedAuth = localStorage.getItem("ss_auth");
+    let initialIsLoggedIn = false;
+    let initialAuthProvider = "guest";
+    if (savedAuth) {
+      try {
+        const authData = JSON.parse(savedAuth);
+        setUser(authData);
+        setIsLoggedIn(authData.isLoggedIn);
+        initialIsLoggedIn = authData.isLoggedIn;
+        initialAuthProvider = authData.authProvider || "guest";
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const hasRedirectParams = typeof window !== "undefined" && 
+      (window.location.search.includes("code=") || window.location.hash.includes("access_token="));
+
+    // If redirecting, block UI rendering to wait for code exchange
+    if (hasRedirectParams) {
+      setIsAuthLoading(true);
+    }
+    
+    setIsMounted(true);
+  }, []);
+
+  // Sync data load on user auth state changes
+  useEffect(() => {
+    if (isMounted) {
+      loadUserData(user);
+    }
+  }, [user.isLoggedIn, user.email, user.authProvider, isMounted]);
+
+  // Supabase Auth change listener & OAuth callback handler
+  useEffect(() => {
+    const client = supabase;
+    if (!client) {
+      setIsAuthLoading(false);
+      return;
+    }
+
+    const cleanUrl = () => {
+      if (typeof window !== "undefined" && (window.location.search.includes('code=') || window.location.hash.includes('access_token='))) {
+        window.history.replaceState({}, document.title, window.location.origin);
       }
     };
 
-    loadInitialData();
-  }, []);
-
-  useEffect(() => {
-    if (!supabase) return;
-
-    // 1. Check for an existing session on initial load
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const handleSession = (session: any) => {
       if (session) {
         const loggedInUser: User = {
           name: session.user.user_metadata.full_name || "Cloud User",
@@ -204,47 +271,67 @@ export default function SmartSpendApp() {
         setUser(loggedInUser);
         setIsLoggedIn(true);
         localStorage.setItem("ss_auth", JSON.stringify(loggedInUser));
+        cleanUrl();
       }
+      setIsAuthLoading(false);
+    };
+
+    // Safety timeout: Ensure loading is disabled after 5 seconds and URL is cleaned up
+    const safetyTimeout = setTimeout(() => {
+      setIsAuthLoading(false);
+      cleanUrl();
+    }, 5000);
+
+    // Check existing session
+    client.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        handleSession(session);
+      } else {
+        const hasRedirectParams = typeof window !== "undefined" && 
+          (window.location.search.includes("code=") || window.location.hash.includes("access_token="));
+        if (!hasRedirectParams) {
+          setIsAuthLoading(false);
+        } else {
+          // If we had redirect params but no session was restored immediately,
+          // clean URL and stop loading.
+          cleanUrl();
+          setIsAuthLoading(false);
+        }
+      }
+    }).catch(() => {
+      setIsAuthLoading(false);
+      cleanUrl();
     });
 
-    // 2. Listen for auth changes (like returning from Google OAuth or email sign in)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
       if (session) {
-        const loggedInUser: User = {
-          name: session.user.user_metadata.full_name || "Cloud User",
-          email: session.user.email || "",
-          college: "Cloud DB",
-          isLoggedIn: true,
-          authProvider: session.user.app_metadata.provider === "google" ? "google" : "email",
-          allowance: 15000,
-        };
-        setUser(loggedInUser);
-        setIsLoggedIn(true);
-        localStorage.setItem("ss_auth", JSON.stringify(loggedInUser));
+        handleSession(session);
       } else {
-        // Only log out if they were not logged in as a guest
         const savedAuth = localStorage.getItem("ss_auth");
         if (savedAuth) {
           try {
             const authData = JSON.parse(savedAuth);
-            if (authData.authProvider === "guest") {
-              return; // Keep Guest logged in
+            if (authData.authProvider === "guest" && authData.isLoggedIn) {
+              setIsAuthLoading(false);
+              return;
             }
-          } catch (e) {}
+          } catch (e) { }
         }
-        setIsLoggedIn(false); // They logged out
+        setIsLoggedIn(false);
+        setUser((prev) => ({ ...prev, isLoggedIn: false }));
+        setIsAuthLoading(false);
       }
     });
 
     return () => {
       subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
     };
   }, []);
 
-  // Save transactions to local storage helper
   const saveTransactionsLocal = (updatedTx: Transaction[]) => {
     setTransactions(updatedTx);
-    localStorage.setItem("ss_transactions", JSON.stringify(updatedTx));
+    localStorage.setItem(getStorageKey("transactions"), JSON.stringify(updatedTx));
   };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
@@ -301,7 +388,7 @@ export default function SmartSpendApp() {
         provider: 'google',
       });
       if (error) console.error("Login failed:", error);
-      return; 
+      return;
     }
 
     // Keep your existing Guest offline logic
@@ -319,11 +406,28 @@ export default function SmartSpendApp() {
   };
 
   const handleLogout = async () => {
+    // Delete current user's namespaced local data
+    localStorage.removeItem(getStorageKey("transactions"));
+    localStorage.removeItem(getStorageKey("budgets"));
+    localStorage.removeItem(getStorageKey("categories"));
+
+    // Also clear anonymous data to prevent cross-session cache leaks
+    localStorage.removeItem("ss_transactions_anonymous");
+    localStorage.removeItem("ss_budgets_anonymous");
+    localStorage.removeItem("ss_categories_anonymous");
+
     if (user.authProvider !== "guest" && supabase) {
       // Log out of Supabase
       await supabase.auth.signOut();
     }
-    
+
+    // Reset memory state immediately to prevent stale cache leakage
+    setTransactions([]);
+    setBudgets(INITIAL_BUDGETS);
+    setCategories(CATEGORIES);
+    setAiMessages([]); // Triggers re-initialization of greeting message
+    setDbStatus("offline");
+
     // Clear local app state
     const loggedOutUser = { ...user, isLoggedIn: false };
     setUser(loggedOutUser);
@@ -379,13 +483,19 @@ export default function SmartSpendApp() {
     saveTransactionsLocal(updatedTx);
     setShowAddEditModal(false);
 
-    // Sync to Supabase
-    if (supabase && dbStatus === "supabase") {
+    // Sync to Supabase (only if cloud user)
+    if (supabase && dbStatus === "supabase" && user.authProvider !== "guest") {
       try {
+        const sessionRes = await supabase.auth.getSession();
+        const sessionUser = sessionRes.data.session?.user;
+        const dbPayload = sessionUser 
+          ? { ...txData, user_id: sessionUser.id } 
+          : txData;
+
         if (editingTransaction) {
-          await supabase.from("transactions").update(txData).eq("id", txData.id);
+          await supabase.from("transactions").update(dbPayload).eq("id", txData.id);
         } else {
-          await supabase.from("transactions").insert([txData]);
+          await supabase.from("transactions").insert([dbPayload]);
         }
       } catch (err) {
         console.error("Supabase sync failed:", err);
@@ -397,7 +507,7 @@ export default function SmartSpendApp() {
     const updatedTx = transactions.filter((t) => t.id !== id);
     saveTransactionsLocal(updatedTx);
 
-    if (supabase && dbStatus === "supabase") {
+    if (supabase && dbStatus === "supabase" && user.authProvider !== "guest") {
       try {
         await supabase.from("transactions").delete().eq("id", id);
       } catch (err) {
@@ -410,7 +520,7 @@ export default function SmartSpendApp() {
   const handleUpdateBudget = (category: string, limit: number) => {
     const updatedBudgets = budgets.map((b) => (b.category === category ? { ...b, limit } : b));
     setBudgets(updatedBudgets);
-    localStorage.setItem("ss_budgets", JSON.stringify(updatedBudgets));
+    localStorage.setItem(getStorageKey("budgets"), JSON.stringify(updatedBudgets));
     setEditingCategoryBudget(null);
   };
 
@@ -446,7 +556,7 @@ export default function SmartSpendApp() {
       [trimmedName]: info,
     };
     setCategories(updatedCategories);
-    localStorage.setItem("ss_categories", JSON.stringify(updatedCategories));
+    localStorage.setItem(getStorageKey("categories"), JSON.stringify(updatedCategories));
 
     const newBudget: Budget = {
       category: trimmedName,
@@ -454,7 +564,7 @@ export default function SmartSpendApp() {
     };
     const updatedBudgets = [...budgets, newBudget];
     setBudgets(updatedBudgets);
-    localStorage.setItem("ss_budgets", JSON.stringify(updatedBudgets));
+    localStorage.setItem(getStorageKey("budgets"), JSON.stringify(updatedBudgets));
 
     setShowAddCategoryModal(false);
     setNewCategoryName("");
@@ -566,6 +676,41 @@ export default function SmartSpendApp() {
     setAiQuery("");
     setIsAiTyping(true);
 
+    // If guest, bypass the database/AI cloud sync entirely and keep it local
+    if (user.authProvider === "guest") {
+      let replyText = "Offline Mode: Analyzing your local device logs. ";
+      const q = currentQuery.toLowerCase();
+      if (q.includes("food") || q.includes("eat")) {
+        const foodExp = categoryExpenses["Food"] || 0;
+        const foodBud = budgets.find((b) => b.category === "Food")?.limit || 1;
+        const pct = Math.round((foodExp / foodBud) * 100);
+        replyText += `🍔 You spent ₹${foodExp.toLocaleString()} on Food, which is ${pct}% of your budget limit (₹${foodBud.toLocaleString()}). ${pct > 80 ? "You are close to overspending! Better cook at home." : "You have some room left."}`;
+      } else if (q.includes("save") || q.includes("saving") || q.includes("rate")) {
+        replyText += `💰 Your current Savings Rate is ${summary.savingsRate}%. Total income is ₹${summary.income.toLocaleString()} and expenses are ₹${summary.expense.toLocaleString()}. ${summary.savingsRate > 20 ? "Excellent job saving!" : "Try to reduce non-essential subscription costs."}`;
+      } else {
+        const topCategory = Object.entries(categoryExpenses).sort((a, b) => b[1] - a[1])[0];
+        if (topCategory) {
+          replyText += `📊 Your biggest spending category is *${topCategory[0]}* at ₹${topCategory[1].toLocaleString()}. Try planning custom budget caps to curb impulse purchases there.`;
+        } else {
+          replyText += `You have no expense transactions loaded yet. Log a transaction first so I can analyze it!`;
+        }
+      }
+
+      setTimeout(() => {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            id: "msg_reply_" + Date.now(),
+            sender: "ai",
+            text: replyText,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+        setIsAiTyping(false);
+      }, 750);
+      return;
+    }
+
     try {
       const res = await fetch("/api/ai/coach", {
         method: "POST",
@@ -641,7 +786,19 @@ export default function SmartSpendApp() {
     });
   }, [transactions, searchQuery, filterType]);
 
-  if (!isMounted) return null;
+  if (!isMounted || isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-xl flex flex-col items-center justify-center p-8 min-h-[680px]">
+          <div className="h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl animate-pulse">
+            <Wallet className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">SmartSpend</h2>
+          <p className="text-sm text-slate-500 animate-pulse">Connecting to service...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Render Landing / Onboarding Screen
   if (!isLoggedIn) {
@@ -1454,7 +1611,7 @@ export default function SmartSpendApp() {
                     }
 
                     setBudgets(updatedBudgets);
-                    localStorage.setItem("ss_budgets", JSON.stringify(updatedBudgets));
+                    localStorage.setItem(getStorageKey("budgets"), JSON.stringify(updatedBudgets));
                     setEditingCategoryBudget(null);
                   }}
                   className="space-y-4 text-xs text-slate-700"
