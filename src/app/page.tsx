@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Utensils,
   Home,
@@ -1385,7 +1387,15 @@ export default function SmartSpendApp() {
                         : "bg-slate-50 border border-slate-100 text-slate-700 rounded-tl-none"
                         }`}
                     >
-                      <p className="whitespace-pre-line font-medium">{msg.text}</p>
+                      {msg.sender === "ai" ? (
+                        <div className="font-medium text-xs [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5 [&_strong]:text-indigo-700 [&_em]:text-indigo-600">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {msg.text}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-line font-medium">{msg.text}</p>
+                      )}
                       <span className="block text-[8px] text-slate-400 text-right mt-1.5">
                         {msg.timestamp}
                       </span>
