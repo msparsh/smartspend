@@ -773,7 +773,6 @@ export default function SmartSpendApp() {
         throw new Error(data.error || "No response");
       }
     } catch (err) {
-      // Local fallback advisor answers
       let replyText = "I couldn't reach the backend server. Here is an analysis of your local logs: ";
       const q = currentQuery.toLowerCase();
       if (q.includes("food") || q.includes("eat")) {

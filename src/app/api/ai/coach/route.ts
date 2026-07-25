@@ -12,11 +12,10 @@ export async function POST(req: Request) {
           error: "GEMINI_API_KEY is not configured on the server. Falling back to local offline coach.",
           isOfflineFallback: true
         },
-        { status: 501 } // 501 Not Implemented / Not Configured
+        { status: 501 }
       );
     }
 
-    // Prepare system instructions and contextual data
     const contextPrompt = `
 You are the SmartSpend AI Coach, a friendly, student-focused financial co-pilot. You help college students manage their money, stipends, allowance, canteen food, hostel bills, travel, and entertainment.
 Your tone is encouraging, savvy, slightly casual, and direct. Use bullet points, emojis, bold text, and brief paragraph structures to make your answers easy to read on a mobile screen.
@@ -41,7 +40,6 @@ Instructions:
 5. Do not use generic advice unless it directly relates to their question. If they ask about overspending, name the category they are overspending on.
     `;
 
-    // Make direct API call to Gemini API (gemini-1.5-flash)
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
 
     const response = await fetch(geminiUrl, {
