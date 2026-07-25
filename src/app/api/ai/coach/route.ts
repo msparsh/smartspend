@@ -42,7 +42,7 @@ Instructions:
     `;
 
     // Make direct API call to Gemini API (gemini-1.5-flash)
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
 
     const response = await fetch(geminiUrl, {
       method: "POST",
